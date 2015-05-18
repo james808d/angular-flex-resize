@@ -76,7 +76,14 @@ angular.module('flexResize')
 			var direction = control.sizeProperties.direction;
 
 			if(control.setSize || control.setSize === 0) {
-				control.lastPos = control.setSize;
+
+				if(direction === 'left') {
+					control.lastPos = control.setSize;
+				} else {
+					control.lastPos = window.innerWidth - control.setSize;
+				}
+
+
 				control.container.element.addClass('animate');
 			} else {
 				control.container.element.removeClass('animate')
@@ -139,29 +146,31 @@ angular.module('flexResize')
 
 		$scope.togglePane = function(pane) {
 
-			//$scope.collapsed = false;
+			var direction = control.sizeProperties.direction;
 
 			if(control.activePane === null) {
 				control.activePane = pane;
 			}
 
-			if(control.container.collapsed ) {
-				//control.container.element.addClass('animate');
+			if(control.container.collapsed && direction === 'left') {
 				control.setSize = 384;
 				control.activePane = pane;
-
 				resize();
-				//control.container.element.removeClass('animate');
+				return;
+			}
+
+			if(control.container.collapsed && direction === 'right') {
+				control.setSize = 512;
+				control.activePane = pane;
+				resize();
 				return;
 			}
 
 			if (!control.container.collapsed && control.activePane === pane) {
-				//control.container.element.addClass('animate');
 				control.activePane = null;
 				control.setSize = 0;
 				control.container.collapsed = true;
 				resize();
-				//control.container.element.removeClass('animate');
 				return;
 			}
 
@@ -232,10 +241,10 @@ angular.module('flexResize')
 					post: function($scope, element, attrs, control) {
 						$scope.$watch('container.width', function(newValue) {
 							element.css('flex-basis', newValue + 'px');
-							$scope.container = container;
+							$scope.container = element;
 						});
 						$scope.$watch('container.collapsed', function(newValue) {
-							$scope.collapsed = container.collapsed;
+							$scope.collapsed = element.collapsed;
 						});
 					}
 				}
