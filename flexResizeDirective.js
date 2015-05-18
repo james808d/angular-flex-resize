@@ -2,7 +2,7 @@
 
 angular.module('flexResize')
 
-	.controller('flexResizeController', [ '$scope', '$element', '$log', function($scope, $element, $log) {
+	.controller('flexResizeController', [ '$scope', '$element', '$log', '$rootScope', function($scope, $element, $log, $rootScope) {
 		var control = this;
 		this.activeResize = null;
 		this.init = true;
@@ -10,19 +10,23 @@ angular.module('flexResize')
 		this.dividerSize = 6;
 		this.setSize = null;
 		this.activePane = null;
-		this.container = {};
+		this.type = 'horizontal';
+		this.outerContainer = {};
+		this.containers = [];
 
 		$log.debug($element);
 
 		this.flex_resize_position = $element.attr('resize');
 
-		if(this.vertical) {
-			this.sizeProperties = { sizeProperty: 'height', offsetSize: 'offsetHeight', offsetPos: 'top', mouseProperty: 'clientY'};
+		if(this.flex_resize_position === 'top') {
+			this.sizeProperties = { sizeProperty: 'height', offsetSize: 'offsetHeight', offsetPos: 'top', direction:'top', mouseProperty: 'clientY'};
 		}
 
 		if(this.flex_resize_position === 'right') {
 			this.sizeProperties = { sizeProperty: 'width', offsetSize: 'offsetWidth', offsetPos: 'left', direction:'left', mouseProperty: 'clientX'};
-		} else {
+		}
+
+		if(this.flex_resize_position === 'left') {
 			this.sizeProperties = { sizeProperty: 'width', offsetSize: 'offsetWidth', offsetPos: 'left', direction:'right', mouseProperty: 'clientX'};
 		}
 
@@ -56,8 +60,8 @@ angular.module('flexResize')
 		};
 
 		this.addContainer = function(container) {
-			this.container = container;
-			$log.debug(this.container);
+			this.containers.push(container);
+			$log.debug(this.containers);
 		};
 
 		function offset(element) {
@@ -83,64 +87,109 @@ angular.module('flexResize')
 					control.lastPos = window.innerWidth - control.setSize;
 				}
 
+				_.each(control.containers, function(container) { container.element.addClass('animate') });
 
-				control.container.element.addClass('animate');
+				//control.containers[0].element.addClass('animate');
 			} else {
-				control.container.element.removeClass('animate')
+
+				_.each(control.containers, function(container) { container.element.removeClass('animate') });
+				//control.containers[0].element.removeClass('animate')
 			}
 
 
 			if(control.init) {
-				control.container.initialSize = control.container.element.width();
+
+				if(control.type === 'horizontal') {
+
+					_.each(control.containers, function(container) { container.initialSize = container.element.width(); });
+
+					//control.containers[0].initialSize = control.containers[0].element.width();
+				}
+				if(control.type === 'vertical') {
+
+					_.each(control.containers, function(container) { container.initialSize = container.element.height(); });
+
+					//control.containers[0].initialSize = control.containers[0].element.height();
+				}
+
 				control.init = false;
+			}
+
+			if(direction === 'top') {
+				$log.debug('top');
+
+
+				var availableheight = control.outerContainer.height();
+
+				var percentage = control.lastPos / availableheight * 100;
+
+				$log.debug(percentage);
+
+				// check for max window size
+				if(control.lastPos >= window.innerHeight - control.dividerSize) {
+					control.containers[0].element.css('height','100%');
+				} else {
+					control.containers[0].element.css('height', percentage + '%');
+					control.containers[1].element.css('height', (100 - percentage) + '%');
+				}
+
+				control.containers[0].collapsed = false;
+
+
+				// snap closed when its close
+				/*if((control.lastPos - control.containers[0].initialSize) < control.snapDistance) {
+					control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
+					control.containers[0].collapsed = true;
+				}*/
+
 			}
 
 
 			if(direction === 'left') {
-				if(control.lastPos > control.container.initialSize) {
+				if(control.lastPos > control.containers[0].initialSize) {
 
 					// check for max window size
 					if(control.lastPos >= window.innerWidth - control.dividerSize) {
-						control.container.element.css('flex-basis', window.innerWidth + 'px');
+						control.containers[0].element.css('flex-basis', window.innerWidth + 'px');
 					} else {
-						control.container.element.css('flex-basis', control.lastPos + 'px');
+						control.containers[0].element.css('flex-basis', control.lastPos + 'px');
 					}
 
-					control.container.collapsed = false;
+					control.containers[0].collapsed = false;
 				}
 
 				// snap closed when its close
-				if((control.lastPos - control.container.initialSize) < control.snapDistance) {
-					control.container.element.css('flex-basis', control.container.initialSize + 'px');
-					control.container.collapsed = true;
+				if((control.lastPos - control.containers[0].initialSize) < control.snapDistance) {
+					control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
+					control.containers[0].collapsed = true;
 				}
 			}
 
 			if(direction === 'right') {
 
-				$log.debug("Right initial size: ", control.container.initialSize);
-
-				if(control.lastPos < window.innerWidth - control.container.initialSize) {
+				if(control.lastPos < window.innerWidth - control.containers[0].initialSize) {
 
 					// check for max window size
 					if((control.lastPos >= window.innerWidth - control.dividerSize) && (control.lastPos > 54)) {
-						control.container.element.css('flex-basis', window.innerWidth + 'px');
+						control.containers[0].element.css('flex-basis', window.innerWidth + 'px');
 					} else {
-						control.container.element.css('flex-basis', ((window.innerWidth - control.lastPos) - control.container.initialSize) + 'px');
+						control.containers[0].element.css('flex-basis', ((window.innerWidth - control.lastPos) - control.containers[0].initialSize) + 'px');
 					}
 
-					control.container.collapsed = false;
+					control.containers[0].collapsed = false;
 				}
 
 				// snap closed when its close and fix minimum size
-				if(((window.innerWidth - control.lastPos) - control.container.initialSize) < control.snapDistance + control.container.initialSize) {
-					control.container.element.css('flex-basis', control.container.initialSize + 'px');
-					control.container.collapsed = true;
+				if(((window.innerWidth - control.lastPos) - control.containers[0].initialSize) < control.snapDistance + control.containers[0].initialSize) {
+					control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
+					control.containers[0].collapsed = true;
 				}
 			}
 
 			control.setSize = null;
 			animationFrameRequested = null;
+
+			$rootScope.redrawCalendar();
 		}
 
 
@@ -152,24 +201,24 @@ angular.module('flexResize')
 				control.activePane = pane;
 			}
 
-			if(control.container.collapsed && direction === 'left') {
+			if(control.containers[0].collapsed && direction === 'left') {
 				control.setSize = 384;
 				control.activePane = pane;
 				resize();
 				return;
 			}
 
-			if(control.container.collapsed && direction === 'right') {
+			if(control.containers[0].collapsed && direction === 'right') {
 				control.setSize = 512;
 				control.activePane = pane;
 				resize();
 				return;
 			}
 
-			if (!control.container.collapsed && control.activePane === pane) {
+			if (!control.containers[0].collapsed && control.activePane === pane) {
 				control.activePane = null;
 				control.setSize = 0;
-				control.container.collapsed = true;
+				control.containers[0].collapsed = true;
 				resize();
 				return;
 			}
@@ -194,8 +243,14 @@ angular.module('flexResize')
 					"\n control: ", control
 				);
 
-				element.addClass('flex-columns');
+				if(attrs.resize === 'top') {
+					element.addClass('flex-rows');
+					control.type = 'vertical';
+				} else {
+					element.addClass('flex-columns');
+				}
 
+				control.outerContainer = element;
 				control.flex_resize_position = attrs.position;
 				control.flex_resize_type = attrs.type;
 
@@ -216,8 +271,15 @@ angular.module('flexResize')
 				if(attrs.resize === 'left') {
 					element.addClass('flex-resize-bar-left');
 					element.prepend(resizeBar);
-				} else {
+				}
+
+				if(attrs.resize === 'right') {
 					element.addClass('flex-resize-bar-right');
+					element.append(resizeBar);
+				}
+
+				if(attrs.resize === 'top') {
+					element.addClass('flex-resize-bar-bottom');
 					element.append(resizeBar);
 				}
 
@@ -235,17 +297,36 @@ angular.module('flexResize')
 							$scope.collapsed = true;
 						}
 
+						if (attrs.resize === 'top') {
+							control.type = 'vertical';
+						}
+
 						control.addContainer(container);
 
 					},
 					post: function($scope, element, attrs, control) {
-						$scope.$watch('container.width', function(newValue) {
-							element.css('flex-basis', newValue + 'px');
-							$scope.container = element;
-						});
-						$scope.$watch('container.collapsed', function(newValue) {
-							$scope.collapsed = element.collapsed;
-						});
+
+						if(control.type === 'horiztonal') {
+							$scope.$watch('container.width', function(newValue) {
+								element.css('flex-basis', newValue + 'px');
+								$scope.container = element;
+							});
+							$scope.$watch('container.collapsed', function(newValue) {
+								$scope.collapsed = element.collapsed;
+							});
+						}
+
+						if(control.type === 'vertical') {
+							$scope.$watch('container.height', function(newValue) {
+								element.css('height', newValue + 'px');
+								$scope.container = element;
+							});
+							$scope.$watch('container.collapsed', function(newValue) {
+								$scope.collapsed = element.collapsed;
+							});
+						}
+
+
 					}
 				}
 			}
