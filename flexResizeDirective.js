@@ -10,14 +10,34 @@ angular.module('flexResize')
 		this.dividerSize = 6;
 		this.setSize = null;
 		this.activePane = null;
-		this.containers = [];
-		this.sizeProperties = { sizeProperty: 'width', offsetSize: 'offsetWidth', offsetPos: 'left', flowProperty: 'left', oppositeFlowProperty: 'right', mouseProperty: 'clientX', flowPropertyPosition: 'x' };
+		this.container = {};
 
+		$log.debug($element);
+
+		this.flex_resize_position = $element.attr('resize');
+
+		if(this.vertical) {
+			this.sizeProperties = { sizeProperty: 'height', offsetSize: 'offsetHeight', offsetPos: 'top', mouseProperty: 'clientY'};
+		}
+
+		if(this.flex_resize_position === 'right') {
+			this.sizeProperties = { sizeProperty: 'width', offsetSize: 'offsetWidth', offsetPos: 'left', direction:'left', mouseProperty: 'clientX'};
+		} else {
+			this.sizeProperties = { sizeProperty: 'width', offsetSize: 'offsetWidth', offsetPos: 'left', direction:'right', mouseProperty: 'clientX'};
+		}
+
+		$log.debug("this.sizeProperties: ", this.sizeProperties);
 
 		var animationFrameRequested;
 		var lastPos;
 
 		this.mouseMoveHandler = function(mouseEvent) {
+
+			$log.debug("##################");
+			$log.debug("mousePos: ", control.mousePos);
+			$log.debug("offset: ", offset($element)[this.sizeProperties.offsetPos]);
+			$log.debug("lastPos: ", control.mousePos - offset($element)[this.sizeProperties.offsetPos]);
+			$log.debug("##################");
 
 			control.mousePos = mouseEvent[this.sizeProperties.mouseProperty] ||
 				(mouseEvent.originalEvent && mouseEvent.originalEvent[this.sizeProperties.mouseProperty]) ||
@@ -31,16 +51,14 @@ angular.module('flexResize')
 				window.cancelAnimationFrame(animationFrameRequested);
 			}
 
-			//TODO: cache layout values
-
 			//Animate the page outside the event
 			animationFrameRequested = window.requestAnimationFrame(resize);
 		};
 
 		this.addContainer = function(container) {
-			this.containers.push(container);
-			$log.debug(this.containers);
-		}
+			this.container = container;
+			$log.debug(this.container);
+		};
 
 		function offset(element) {
 			var rawDomNode = element[0];
@@ -50,45 +68,68 @@ angular.module('flexResize')
 			var clientRect = rawDomNode.getBoundingClientRect();
 			var x = clientRect.left + scrollX;
 			var y = clientRect.top + scrollY;
-			return { left: x, top: y };
+			return { left: x, top: y, right: x + element.width() };
 		}
 
 		function resize() {
 
-			$log.debug("mousePos: ", control.mousePos);
-			$log.debug("lastPos: ", control.lastPos);
-
+			var direction = control.sizeProperties.direction;
 
 			if(control.setSize || control.setSize === 0) {
 				control.lastPos = control.setSize;
-				control.containers[0].element.addClass('animate');
+				control.container.element.addClass('animate');
 			} else {
-				control.containers[0].element.removeClass('animate')
+				control.container.element.removeClass('animate')
 			}
 
 
 			if(control.init) {
-				_.each(control.containers, function(c){ c.initialSize = c.element.width(); } );
+				control.container.initialSize = control.container.element.width();
 				control.init = false;
 			}
 
-			// get parent element to resize ... just hacking this for now becuase i know there is only container
-			if(control.lastPos > control.containers[0].initialSize) {
 
-				// check for max window size
-				if(control.lastPos >= window.innerWidth - control.dividerSize) {
-					control.containers[0].element.css('flex-basis', window.innerWidth + 'px');
-				} else {
-					control.containers[0].element.css('flex-basis', control.lastPos + 'px');
+			if(direction === 'left') {
+				if(control.lastPos > control.container.initialSize) {
+
+					// check for max window size
+					if(control.lastPos >= window.innerWidth - control.dividerSize) {
+						control.container.element.css('flex-basis', window.innerWidth + 'px');
+					} else {
+						control.container.element.css('flex-basis', control.lastPos + 'px');
+					}
+
+					control.container.collapsed = false;
 				}
 
-				control.containers[0].collapsed = false;
+				// snap closed when its close
+				if((control.lastPos - control.container.initialSize) < control.snapDistance) {
+					control.container.element.css('flex-basis', control.container.initialSize + 'px');
+					control.container.collapsed = true;
+				}
 			}
 
-			// snap closed when its close
-			if((control.lastPos - control.containers[0].initialSize) < control.snapDistance) {
-				control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
-				control.containers[0].collapsed = true;
+			if(direction === 'right') {
+
+				$log.debug("Right initial size: ", control.container.initialSize);
+
+				if(control.lastPos < window.innerWidth - control.container.initialSize) {
+
+					// check for max window size
+					if((control.lastPos >= window.innerWidth - control.dividerSize) && (control.lastPos > 54)) {
+						control.container.element.css('flex-basis', window.innerWidth + 'px');
+					} else {
+						control.container.element.css('flex-basis', ((window.innerWidth - control.lastPos) - control.container.initialSize) + 'px');
+					}
+
+					control.container.collapsed = false;
+				}
+
+				// snap closed when its close and fix minimum size
+				if(((window.innerWidth - control.lastPos) - control.container.initialSize) < control.snapDistance + control.container.initialSize) {
+					control.container.element.css('flex-basis', control.container.initialSize + 'px');
+					control.container.collapsed = true;
+				}
 			}
 
 			control.setSize = null;
@@ -98,29 +139,29 @@ angular.module('flexResize')
 
 		$scope.togglePane = function(pane) {
 
-			$scope.collapsed = false;
+			//$scope.collapsed = false;
 
 			if(control.activePane === null) {
 				control.activePane = pane;
 			}
 
-			if(control.containers[0].collapsed ) {
-				//control.containers[0].element.addClass('animate');
+			if(control.container.collapsed ) {
+				//control.container.element.addClass('animate');
 				control.setSize = 384;
 				control.activePane = pane;
 
 				resize();
-				//control.containers[0].element.removeClass('animate');
+				//control.container.element.removeClass('animate');
 				return;
 			}
 
-			if (!control.containers[0].collapsed && control.activePane === pane) {
-				//control.containers[0].element.addClass('animate');
+			if (!control.container.collapsed && control.activePane === pane) {
+				//control.container.element.addClass('animate');
 				control.activePane = null;
 				control.setSize = 0;
-				$scope.collapsed = true;
+				control.container.collapsed = true;
 				resize();
-				//control.containers[0].element.removeClass('animate');
+				//control.container.element.removeClass('animate');
 				return;
 			}
 
@@ -131,12 +172,24 @@ angular.module('flexResize')
 		return control;
 	}])
 
-	.directive('flexResize', [ function() {
+	.directive('flexResize', [ '$log', function($log) {
 
 		return {
 			restrict: 'EA',
 			controller: 'flexResizeController',
 			link: function($scope, element, attrs, control) {
+				$log.debug(
+					"$scope: ", $scope,
+					"\n element: ", element,
+					"\n attrs: ", attrs,
+					"\n control: ", control
+				);
+
+				element.addClass('flex-columns');
+
+				control.flex_resize_position = attrs.position;
+				control.flex_resize_type = attrs.type;
+
 
 			}
 		}
@@ -147,16 +200,21 @@ angular.module('flexResize')
 			restrict: 'EA',
 			require: '^flexResize',
 			scope: {},
-			compile: function(element) {
-
-				//TODO: check if element is last element
+			compile: function(element, attrs) {
 
 				var resizeBar = angular.element('<flex-resize-bar></flex-resize-bar>');
-				element.append(resizeBar);
+
+				if(attrs.resize === 'left') {
+					element.addClass('flex-resize-bar-left');
+					element.prepend(resizeBar);
+				} else {
+					element.addClass('flex-resize-bar-right');
+					element.append(resizeBar);
+				}
 
 				return {
 					pre: function($scope, element, attrs, control) {
-						$scope.container = {
+						var container = {
 							width: null,
 							initialSize:  null,
 							locked: null,
@@ -168,13 +226,16 @@ angular.module('flexResize')
 							$scope.collapsed = true;
 						}
 
-						$scope.init = true;
-						control.addContainer($scope.container);
+						control.addContainer(container);
 
 					},
 					post: function($scope, element, attrs, control) {
 						$scope.$watch('container.width', function(newValue) {
 							element.css('flex-basis', newValue + 'px');
+							$scope.container = container;
+						});
+						$scope.$watch('container.collapsed', function(newValue) {
+							$scope.collapsed = container.collapsed;
 						});
 					}
 				}
@@ -203,7 +264,7 @@ angular.module('flexResize')
 						$scope.$apply(angular.bind(control, control.mouseMoveHandler, event));
 					});
 					return false;
-				})
+				});
 
 				root.on('mouseup touchend', function(event) {
 					$scope.$apply(angular.bind(control, control.mouseUpHandler, event));
@@ -211,4 +272,4 @@ angular.module('flexResize')
 				});
 			}
 		}
-	}])
+	}]);
