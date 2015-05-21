@@ -11,6 +11,7 @@ angular.module('flexResize')
 		this.setSize = null;
 		this.activePane = null;
 		this.type = 'horizontal';
+		this.option = null;
 		this.outerContainer = {};
 		this.containers = [];
 
@@ -33,22 +34,12 @@ angular.module('flexResize')
 		$log.debug("this.sizeProperties: ", this.sizeProperties);
 
 		var animationFrameRequested;
-		var lastPos;
+		var position;
 
 		this.mouseMoveHandler = function(mouseEvent) {
-
-			$log.debug("##################");
-			$log.debug("mousePos: ", control.mousePos);
-			$log.debug("offset: ", offset($element)[this.sizeProperties.offsetPos]);
-			$log.debug("lastPos: ", control.mousePos - offset($element)[this.sizeProperties.offsetPos]);
-			$log.debug("##################");
-
-			control.mousePos = mouseEvent[this.sizeProperties.mouseProperty] ||
+			control.position = mouseEvent[this.sizeProperties.mouseProperty] ||
 				(mouseEvent.originalEvent && mouseEvent.originalEvent[this.sizeProperties.mouseProperty]) ||
 				(mouseEvent.targetTouches ? mouseEvent.targetTouches[0][this.sizeProperties.mouseProperty] : 0);
-
-
-			control.lastPos = control.mousePos - offset($element)[this.sizeProperties.offsetPos];
 
 			//Cancel previous rAF call
 			if(animationFrameRequested) {
@@ -76,40 +67,34 @@ angular.module('flexResize')
 		}
 
 		function resize() {
-
+			var percentage;
+			var offset = 0;
 			var direction = control.sizeProperties.direction;
+
+			if(control.option === 'nav-panel') {
+				offset = '54';
+			}
 
 			if(control.setSize || control.setSize === 0) {
 
 				if(direction === 'left') {
-					control.lastPos = control.setSize;
+					control.position = control.setSize;
 				} else {
-					control.lastPos = window.innerWidth - control.setSize;
+					control.position = window.innerWidth - control.setSize;
 				}
-
 				_.each(control.containers, function(container) { container.element.addClass('animate') });
-
-				//control.containers[0].element.addClass('animate');
 			} else {
-
 				_.each(control.containers, function(container) { container.element.removeClass('animate') });
-				//control.containers[0].element.removeClass('animate')
 			}
 
 
 			if(control.init) {
 
 				if(control.type === 'horizontal') {
-
 					_.each(control.containers, function(container) { container.initialSize = container.element.width(); });
-
-					//control.containers[0].initialSize = control.containers[0].element.width();
 				}
 				if(control.type === 'vertical') {
-
 					_.each(control.containers, function(container) { container.initialSize = container.element.height(); });
-
-					//control.containers[0].initialSize = control.containers[0].element.height();
 				}
 
 				control.init = false;
@@ -121,23 +106,26 @@ angular.module('flexResize')
 
 				var availableheight = control.outerContainer.height();
 
-				var percentage = control.lastPos / availableheight * 100;
+				percentage = (control.position - control.outerContainer.offset().top) / availableheight * 100;
 
-				$log.debug(percentage);
+				$log.debug("availableheight: ", availableheight);
+				$log.debug("control.position: ", control.position);
+				$log.debug("percentage: ", percentage);
 
 				// check for max window size
-				if(control.lastPos >= window.innerHeight - control.dividerSize) {
+				if(control.position >= (control.outerContainer.height() - control.dividerSize)) {
 					control.containers[0].element.css('height','100%');
 				} else {
 					control.containers[0].element.css('height', percentage + '%');
 					control.containers[1].element.css('height', (100 - percentage) + '%');
+					$log.debug("percentage: ", percentage);
 				}
 
 				control.containers[0].collapsed = false;
-
+				$log.debug("----------------");
 
 				// snap closed when its close
-				/*if((control.lastPos - control.containers[0].initialSize) < control.snapDistance) {
+				/*if((control.position - control.containers[0].initialSize) < control.snapDistance) {
 					control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
 					control.containers[0].collapsed = true;
 				}*/
@@ -146,41 +134,64 @@ angular.module('flexResize')
 
 
 			if(direction === 'left') {
-				if(control.lastPos > control.containers[0].initialSize) {
 
-					// check for max window size
-					if(control.lastPos >= window.innerWidth - control.dividerSize) {
+				if(control.option === 'nav-panel') {
+
+					// set size directly
+					if(control.position >= (control.outerContainer.width() - control.dividerSize)) {
 						control.containers[0].element.css('flex-basis', window.innerWidth + 'px');
 					} else {
-						control.containers[0].element.css('flex-basis', control.lastPos + 'px');
+						control.containers[0].element.css('flex-basis', control.position + 'px');
+					}
+
+					control.containers[0].collapsed = false;
+
+					// snap closed when its close
+					$log.debug("snap calculation: ", control.position + control.outerContainer.offset().left - offset);
+					if((control.position + control.outerContainer.offset().left - offset ) < control.snapDistance) {
+						control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
+						control.containers[0].collapsed = true;
+					}
+
+				} else {
+
+					// set size in percents
+
+					var availableWidth = control.outerContainer.width();
+
+					percentage = (control.position - control.outerContainer.offset().left ) / availableWidth * 100;
+
+					$log.debug("percentage: ", percentage, "offsetLeft: ", control.outerContainer.offset().left, "position: ", control.position, "total width: ",availableWidth );
+
+					// check for max window size
+					if(control.position >= (control.outerContainer.width() - control.dividerSize)) {
+						control.containers[0].element.css('flex-basis','100%');
+					} else {
+						control.containers[0].element.css('flex-basis', percentage + '%');
+						control.containers[1].element.css('flex-basis', (100 - percentage) + '%');
 					}
 
 					control.containers[0].collapsed = false;
 				}
 
-				// snap closed when its close
-				if((control.lastPos - control.containers[0].initialSize) < control.snapDistance) {
-					control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
-					control.containers[0].collapsed = true;
-				}
+
 			}
 
 			if(direction === 'right') {
 
-				if(control.lastPos < window.innerWidth - control.containers[0].initialSize) {
 
-					// check for max window size
-					if((control.lastPos >= window.innerWidth - control.dividerSize) && (control.lastPos > 54)) {
-						control.containers[0].element.css('flex-basis', window.innerWidth + 'px');
-					} else {
-						control.containers[0].element.css('flex-basis', ((window.innerWidth - control.lastPos) - control.containers[0].initialSize) + 'px');
-					}
-
-					control.containers[0].collapsed = false;
+				// check for max window size
+				if((control.position >= (control.outerContainer.width() - control.dividerSize))) {
+					control.containers[0].element.css('flex-basis', window.innerWidth + 'px');
+				} else {
+					control.containers[0].element.css('flex-basis', (window.innerWidth - control.position) + 'px');
 				}
 
+				control.containers[0].collapsed = false;
+
+
 				// snap closed when its close and fix minimum size
-				if(((window.innerWidth - control.lastPos) - control.containers[0].initialSize) < control.snapDistance + control.containers[0].initialSize) {
+				if(((window.innerWidth - control.position) - control.containers[0].initialSize) < control.snapDistance ) {
 					control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
 					control.containers[0].collapsed = true;
 				}
@@ -197,6 +208,9 @@ angular.module('flexResize')
 
 			var direction = control.sizeProperties.direction;
 
+
+
+
 			if(control.activePane === null) {
 				control.activePane = pane;
 			}
@@ -204,7 +218,11 @@ angular.module('flexResize')
 			if(control.containers[0].collapsed && direction === 'left') {
 				control.setSize = 384;
 				control.activePane = pane;
+
 				resize();
+				$scope.collapsed = control.containers[0].collapsed;
+				$scope.showOptions = false;
+				$log.debug("$scope.collapsed: ",$scope.collapsed);
 				return;
 			}
 
@@ -212,6 +230,9 @@ angular.module('flexResize')
 				control.setSize = 512;
 				control.activePane = pane;
 				resize();
+				$scope.collapsed = control.containers[0].collapsed;
+				$scope.showOptions = false;
+				$log.debug("$scope.collapsed: ",$scope.collapsed);
 				return;
 			}
 
@@ -220,11 +241,16 @@ angular.module('flexResize')
 				control.setSize = 0;
 				control.containers[0].collapsed = true;
 				resize();
+				$scope.collapsed = control.containers[0].collapsed;
+				$scope.showOptions = false;
+				$log.debug("$scope.collapsed: ",$scope.collapsed);
 				return;
 			}
 
 			control.activePane = pane
-
+			$scope.collapsed = control.containers[0].collapsed;
+			$scope.showOptions = false;
+			$log.debug("$scope.collapsed: ",$scope.collapsed);
 		}
 
 		return control;
@@ -248,6 +274,10 @@ angular.module('flexResize')
 					control.type = 'vertical';
 				} else {
 					element.addClass('flex-columns');
+				}
+
+				if(attrs.option){
+					control.option = attrs.option;
 				}
 
 				control.outerContainer = element;
