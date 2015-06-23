@@ -4,7 +4,6 @@ angular.module('flexResize')
 
 	.controller('flexResizeController', [ '$scope', '$element', '$log', '$rootScope', function($scope, $element, $log, $rootScope) {
 		var control = this;
-		this.activeResize = null;
 		this.init = true;
 		this.snapDistance = 20;
 		this.dividerSize = 4;
@@ -19,24 +18,39 @@ angular.module('flexResize')
 
 		$log.debug("$element: ", $element);
 
-		this.flex_resize_position = $element.attr('resize');
 
-		if(this.flex_resize_position === 'top' || 'vertical') {
-			this.sizeProperties = { sizeProperty: 'height', offsetSize: 'offsetHeight', offsetPos: 'top', direction:'top', mouseProperty: 'clientY'};
+		this.setOrientation = function() {
+			this.flex_resize_position = $element.attr('resize');
+
+			if(this.flex_resize_position === 'top' || 'vertical') {
+				this.sizeProperties = { sizeProperty: 'height', offsetSize: 'offsetHeight', offsetPos: 'top', direction:'top', mouseProperty: 'clientY'};
+			}
+
+			if(this.flex_resize_position === 'right') {
+				this.sizeProperties = { sizeProperty: 'width', offsetSize: 'offsetWidth', offsetPos: 'left', direction:'left', mouseProperty: 'clientX'};
+			}
+
+			if(this.flex_resize_position === 'left') {
+				this.sizeProperties = { sizeProperty: 'width', offsetSize: 'offsetWidth', offsetPos: 'left', direction:'right', mouseProperty: 'clientX'};
+			}
+
+			$log.debug("this.sizeProperties: ", this.sizeProperties);
 		}
 
-		if(this.flex_resize_position === 'right') {
-			this.sizeProperties = { sizeProperty: 'width', offsetSize: 'offsetWidth', offsetPos: 'left', direction:'left', mouseProperty: 'clientX'};
-		}
-
-		if(this.flex_resize_position === 'left') {
-			this.sizeProperties = { sizeProperty: 'width', offsetSize: 'offsetWidth', offsetPos: 'left', direction:'right', mouseProperty: 'clientX'};
-		}
-
-		$log.debug("this.sizeProperties: ", this.sizeProperties);
+		this.setOrientation();
 
 		var animationFrameRequested;
 		var position;
+
+		this.toggleDirection = function() {
+			if(this.type === 'horizontal') {
+				this.type = 'vertical'
+			} else {
+				this.type = 'horizontal'
+			}
+			this.setOrientation();
+		}
+
 
 		this.mouseMoveHandler = function(mouseEvent) {
 			control.position = mouseEvent[this.sizeProperties.mouseProperty] ||
@@ -379,7 +393,6 @@ angular.module('flexResize')
 				var root = angular.element(document.body.parentElement);
 
 				$element.on('mousedown touchstart', function(event) {
-					control.activeResize = $element;
 					event.preventDefault();
 					event.stopPropagation();
 
