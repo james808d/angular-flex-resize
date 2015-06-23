@@ -7,7 +7,7 @@ angular.module('flexResize')
 		this.activeResize = null;
 		this.init = true;
 		this.snapDistance = 20;
-		this.dividerSize = 6;
+		this.dividerSize = 4;
 		this.setSize = null;
 		this.activePane = null;
 		this.type = 'horizontal';
@@ -15,11 +15,13 @@ angular.module('flexResize')
 		this.outerContainer = {};
 		this.containers = [];
 
-		$log.debug($element);
+
+
+		$log.debug("$element: ", $element);
 
 		this.flex_resize_position = $element.attr('resize');
 
-		if(this.flex_resize_position === 'top') {
+		if(this.flex_resize_position === 'top' || 'vertical') {
 			this.sizeProperties = { sizeProperty: 'height', offsetSize: 'offsetHeight', offsetPos: 'top', direction:'top', mouseProperty: 'clientY'};
 		}
 
@@ -52,7 +54,6 @@ angular.module('flexResize')
 
 		this.addContainer = function(container) {
 			this.containers.push(container);
-			$log.debug(this.containers);
 		};
 
 		function offset(element) {
@@ -72,7 +73,7 @@ angular.module('flexResize')
 			var direction = control.sizeProperties.direction;
 
 			if(control.option === 'nav-panel') {
-				offset = '54';
+				offset = '52';
 			}
 
 			if(control.setSize || control.setSize === 0) {
@@ -90,11 +91,16 @@ angular.module('flexResize')
 
 			if(control.init) {
 
-				if(control.type === 'horizontal') {
-					_.each(control.containers, function(container) { container.initialSize = container.element.width(); });
-				}
-				if(control.type === 'vertical') {
-					_.each(control.containers, function(container) { container.initialSize = container.element.height(); });
+
+				if(control.option === 'nav-panel') {
+					_.each(control.containers, function(container) { container.initialSize = 52; });
+				} else {
+					if(control.type === 'horizontal') {
+						_.each(control.containers, function(container) { container.initialSize = container.element.width(); });
+					}
+					if(control.type === 'vertical') {
+						_.each(control.containers, function(container) { container.initialSize = container.element.height(); });
+					}
 				}
 
 				control.init = false;
@@ -121,14 +127,14 @@ angular.module('flexResize')
 					$log.debug("percentage: ", percentage);
 				}
 
-				control.containers[0].collapsed = false;
+				control.collapsed = false;
 				$log.debug("----------------");
 
 				// snap closed when its close
-				/*if((control.position - control.containers[0].initialSize) < control.snapDistance) {
+				if((control.position - control.containers[0].initialSize) < control.snapDistance) {
 					control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
-					control.containers[0].collapsed = true;
-				}*/
+					control.collapsed = true;
+				}
 
 			}
 
@@ -144,13 +150,16 @@ angular.module('flexResize')
 						control.containers[0].element.css('flex-basis', control.position + 'px');
 					}
 
-					control.containers[0].collapsed = false;
+					control.collapsed = false;
 
 					// snap closed when its close
 					$log.debug("snap calculation: ", control.position + control.outerContainer.offset().left - offset);
+					$log.debug((control.position + control.outerContainer.offset().left - offset ) < control.snapDistance);
 					if((control.position + control.outerContainer.offset().left - offset ) < control.snapDistance) {
 						control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
-						control.containers[0].collapsed = true;
+						control.collapsed = true;
+					} else {
+						control.collapsed = false;
 					}
 
 				} else {
@@ -171,7 +180,7 @@ angular.module('flexResize')
 						control.containers[1].element.css('flex-basis', (100 - percentage) + '%');
 					}
 
-					control.containers[0].collapsed = false;
+					control.collapsed = false;
 				}
 
 
@@ -187,13 +196,12 @@ angular.module('flexResize')
 					control.containers[0].element.css('flex-basis', (window.innerWidth - control.position) + 'px');
 				}
 
-				control.containers[0].collapsed = false;
-
+				control.collapsed = false;
 
 				// snap closed when its close and fix minimum size
 				if(((window.innerWidth - control.position) - control.containers[0].initialSize) < control.snapDistance ) {
 					control.containers[0].element.css('flex-basis', control.containers[0].initialSize + 'px');
-					control.containers[0].collapsed = true;
+					control.collapsed = true;
 				}
 			}
 
@@ -203,55 +211,44 @@ angular.module('flexResize')
 			$rootScope.redrawCalendar();
 		}
 
-
-		$scope.togglePane = function(pane) {
+		control.togglePane = function(pane) {
 
 			var direction = control.sizeProperties.direction;
-
-
-
 
 			if(control.activePane === null) {
 				control.activePane = pane;
 			}
 
-			if(control.containers[0].collapsed && direction === 'left') {
+			if(control.collapsed && direction === 'left') {
 				control.setSize = 384;
 				control.activePane = pane;
-
 				resize();
-				$scope.collapsed = control.containers[0].collapsed;
 				$scope.showOptions = false;
-				$log.debug("$scope.collapsed: ",$scope.collapsed);
 				return;
 			}
 
-			if(control.containers[0].collapsed && direction === 'right') {
+			if(control.collapsed && direction === 'right') {
 				control.setSize = 512;
 				control.activePane = pane;
 				resize();
-				$scope.collapsed = control.containers[0].collapsed;
 				$scope.showOptions = false;
-				$log.debug("$scope.collapsed: ",$scope.collapsed);
 				return;
 			}
 
-			if (!control.containers[0].collapsed && control.activePane === pane) {
+			if (!control.collapsed && control.activePane === pane) {
 				control.activePane = null;
 				control.setSize = 0;
-				control.containers[0].collapsed = true;
+				control.collapsed = true;
 				resize();
-				$scope.collapsed = control.containers[0].collapsed;
 				$scope.showOptions = false;
-				$log.debug("$scope.collapsed: ",$scope.collapsed);
 				return;
 			}
 
 			control.activePane = pane
-			$scope.collapsed = control.containers[0].collapsed;
 			$scope.showOptions = false;
-			$log.debug("$scope.collapsed: ",$scope.collapsed);
 		}
+
+		console.log("control: ", control);
 
 		return control;
 	}])
@@ -261,15 +258,11 @@ angular.module('flexResize')
 		return {
 			restrict: 'EA',
 			controller: 'flexResizeController',
+			controllerAs: 'resizeControl',
 			link: function($scope, element, attrs, control) {
-				$log.debug(
-					"$scope: ", $scope,
-					"\n element: ", element,
-					"\n attrs: ", attrs,
-					"\n control: ", control
-				);
 
-				if(attrs.resize === 'top') {
+
+				if(attrs.resize === 'vertical') {
 					element.addClass('flex-rows');
 					control.type = 'vertical';
 				} else {
@@ -283,18 +276,18 @@ angular.module('flexResize')
 				control.outerContainer = element;
 				control.flex_resize_position = attrs.position;
 				control.flex_resize_type = attrs.type;
-
-
 			}
 		}
 	}])
 
 	.directive('flexResizeArea', [ function() {
+
+
 		return {
 			restrict: 'EA',
 			require: '^flexResize',
-			scope: {},
-			compile: function(element, attrs) {
+
+			compile: function(element, attrs, $log ) {
 
 				var resizeBar = angular.element('<flex-resize-bar></flex-resize-bar>');
 
@@ -319,44 +312,56 @@ angular.module('flexResize')
 							width: null,
 							initialSize:  null,
 							locked: null,
-							collapsed: attrs.collapsed || false,
 							element: element
 						};
-
-						if (attrs.collapsed) {
-							$scope.collapsed = true;
-						}
 
 						if (attrs.resize === 'top') {
 							control.type = 'vertical';
 						}
 
+
+
+						if(element.attr('collapsed') === 'true') {
+							control.collapsed = true;
+						} else {
+							control.collapsed = false;
+							control.activePane = 1;
+						}
+
+
 						control.addContainer(container);
-
 					},
-					post: function($scope, element, attrs, control) {
+					link: function($scope, element, attrs, control, $log) {
+						$scope.container = element;
+						$scope.control = control;
 
-						if(control.type === 'horiztonal') {
+						if(control.type === 'horizontal') {
 							$scope.$watch('container.width', function(newValue) {
 								element.css('flex-basis', newValue + 'px');
-								$scope.container = element;
 							});
-							$scope.$watch('container.collapsed', function(newValue) {
-								$scope.collapsed = element.collapsed;
-							});
+							/*$scope.$watch('container.collapsed', function(newValue) {
+								if(element.attr("collapsed")) {
+									$scope.collapsed = element.attr("collapsed");
+								} else {
+									$scope.collapsed = false;
+								}
+							});*/
 						}
 
 						if(control.type === 'vertical') {
 							$scope.$watch('container.height', function(newValue) {
 								element.css('height', newValue + 'px');
-								$scope.container = element;
 							});
-							$scope.$watch('container.collapsed', function(newValue) {
-								$scope.collapsed = element.collapsed;
-							});
+							/*$scope.$watch('container.collapsed', function(newValue) {
+								if(element.attr("collapsed")) {
+									$scope.collapsed = element.attr("collapsed");
+								} else {
+									$scope.collapsed = false;
+								}
+							});*/
 						}
 
-
+						console.log("linkFunction scope: ", $scope);
 					}
 				}
 			}
@@ -367,13 +372,11 @@ angular.module('flexResize')
 		return {
 			restrict: 'EAC',
 			require: '^flexResize',
-			scope: {},
 			link: function($scope, $element, attrs, control) {
 				$log.debug('flexResizeBar element: ', $element);
 				$log.debug('flexResizeBar element.children(): ', $element.children());
 
 				var root = angular.element(document.body.parentElement);
-
 
 				$element.on('mousedown touchstart', function(event) {
 					control.activeResize = $element;
